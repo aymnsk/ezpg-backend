@@ -1,53 +1,57 @@
-
-from flask import Flask, request, render_template
+from flask import Flask, request, jsonify, render_template
 import sqlite3
+import os
 
 app = Flask(__name__)
 
-# Create DB if not exists
+# === DATABASE SETUP ===
 def init_db():
-    conn = sqlite3.connect('bookings.db')
-    c = conn.cursor()
-    c.execute('''
+    with sqlite3.connect("bookings.db") as conn:
+        c = conn.cursor()
+        c.execute("""
         CREATE TABLE IF NOT EXISTS bookings (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
-            name TEXT,
-            contact TEXT,
-            room TEXT,
-            date TEXT
+            name TEXT NOT NULL,
+            email TEXT NOT NULL,
+            phone TEXT NOT NULL,
+            room TEXT NOT NULL,
+            date TEXT NOT NULL
         )
-    ''')
-    conn.commit()
-    conn.close()
+        """)
+        conn.commit()
 
 init_db()
 
-# POST API for form submission
+@app.route('/')
+def home():
+    return "<h2>🎯 EzPG Backend Live</h2><p>POST to <code>/book</code> or view <code>/admin</code></p>"
+
+# === BOOKING API ===
 @app.route('/book', methods=['POST'])
-def book_room():
-    name = request.form['name']
-    contact = request.form['contact']
-    room = request.form['room']
-    date = request.form['date']
+def book():
+    data = request.json
+    if not data:
+        return jsonify({"error": "No data received"}), 400
 
-    conn = sqlite3.connect('bookings.db')
-    c = conn.cursor()
-    c.execute('INSERT INTO bookings (name, contact, room, date) VALUES (?, ?, ?, ?)',
-              (name, contact, room, date))
-    conn.commit()
-    conn.close()
+    name = data.get("name")
+    email = data.get("email")
+    phone = data.get("phone")
+    room = data.get("room")
+    date = data.get("date")
 
-    return "<h2>✅ Booking received! We'll contact you shortly.</h2>"
+    with sqlite3.connect("bookings.db") as conn:
+        c = conn.cursor()
+        c.execute("INSERT INTO bookings (name, email, phone, room, date) VALUES (?, ?, ?, ?, ?)",
+                  (name, email, phone, room, date))
+        conn.commit()
 
-@app.route('/admin')
+    return jsonify({"message": "Booking successful"}), 200
+
+# === ADMIN PANEL ===
+@app.route('/admin', methods=['GET'])
 def admin():
-    conn = sqlite3.connect('bookings.db')
-    c = conn.cursor()
-    c.execute('SELECT * FROM bookings')
-    rows = c.fetchall()
-    conn.close()
-    return render_template('admin.html', bookings=rows)
-
-
-if __name__ == '__main__':
-    app.run(debug=True)
+    with sqlite3.connect("bookings.db") as conn:
+        c = conn.cursor()
+        c.execute("SELECT * FROM bookings ORDER BY id DESC")
+        bookings = c.fetchall()
+    return render_template("admin.html", bookings=bookings)
