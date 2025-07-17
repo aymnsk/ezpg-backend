@@ -39,15 +39,15 @@ def book_room():
 
     return "<h2>✅ Booking received! We'll contact you shortly.</h2>"
 
-# Admin panel
 @app.route('/admin')
-def view_bookings():
+def admin():
     conn = sqlite3.connect('bookings.db')
     c = conn.cursor()
     c.execute('SELECT * FROM bookings')
-    data = c.fetchall()
+    rows = c.fetchall()
     conn.close()
-    return render_template('admin.html', bookings=data)
+    return render_template('admin.html', bookings=rows)
+
 
 if __name__ == '__main__':
     app.run(debug=True)
